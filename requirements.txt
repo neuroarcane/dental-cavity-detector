@@ -1,0 +1,13 @@
+ultralytics
+torch
+torchvision
+opencv-python
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+pycocotools
+roboflow
+jupyter
+tensorboard
