@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Project-specific
+data/
+!data/README.md
+models/
+!models/README.md
+*.pt
+*.pth
+*.onnx
+.ipynb_checkpoints/
+runs/
+wandb/
+.env
