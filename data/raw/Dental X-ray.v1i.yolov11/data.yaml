@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['Cavity', 'Fillings', 'Impacted Tooth', 'Implant']
+
+roboflow:
+  workspace: gozdes-projects
+  project: dental-x-ray-1imfs
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/gozdes-projects/dental-x-ray-1imfs/dataset/1
