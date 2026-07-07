@@ -74,7 +74,7 @@ def pool_images(dataset_root=DATA_PROCESSED) -> pd.DataFrame:
         image_dir = dataset_root / split / "images"
         if not image_dir.is_dir():
             continue
-        for image_path in image_dir.iterdir():
+        for image_path in sorted(image_dir.iterdir()):
             stem = image_path.stem
             source = "xray1" if stem.startswith("xray1_") else "panoramic"
             rows.append({

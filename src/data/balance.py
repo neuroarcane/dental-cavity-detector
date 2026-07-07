@@ -45,9 +45,9 @@ def _index_split(dataset_root, split):
     image_dir = Path(dataset_root) / split / "images"
     label_dir = Path(dataset_root) / split / "labels"
 
-    ext_by_stem = {p.stem: p.suffix for p in image_dir.iterdir()}
+    ext_by_stem = {p.stem: p.suffix for p in sorted(image_dir.iterdir())}
     index = {}
-    for label_path in label_dir.glob("*.txt"):
+    for label_path in sorted(label_dir.glob("*.txt")):
         stem = label_path.stem
         if stem not in ext_by_stem:
             continue
