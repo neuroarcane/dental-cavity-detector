@@ -219,10 +219,11 @@ __marimo__/
 
 
 # Project-specific
-data/
-!data/README.md
-models/
-!models/README.md
+# Anchored to repo root so this doesn't also match src/data/ or src/models/ (code subpackages).
+/data/
+!/data/README.md
+/models/
+!/models/README.md
 *.pt
 *.pth
 *.onnx
