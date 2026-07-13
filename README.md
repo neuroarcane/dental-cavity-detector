@@ -36,3 +36,4 @@ pip install -r requirements.txt
 
 Jira board: https://neuroarcane.atlassian.net/jira/software/projects/SCRUM/boards/1
 Confluence docs: https://neuroarcane.atlassian.net/wiki/spaces/DCD/overview
+Report skeleton & metrics spec: https://neuroarcane.atlassian.net/wiki/spaces/DCD/pages/655420

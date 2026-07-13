@@ -225,6 +225,8 @@ __marimo__/
 !/data/raw/
 !/data/annotations/
 /data/annotations/to_label/
+data/
+!data/README.md
 /models/
 !/models/README.md
 *.pt
