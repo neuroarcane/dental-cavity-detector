@@ -219,6 +219,12 @@ __marimo__/
 
 
 # Project-specific
+# Anchored to repo root so this doesn't also match src/data/ or src/models/ (code subpackages).
+/data/*
+!/data/README.md
+!/data/raw/
+!/data/annotations/
+/data/annotations/to_label/
 data/
 !data/README.md
 /models/
@@ -229,4 +235,5 @@ data/
 .ipynb_checkpoints/
 runs/
 wandb/
+.DS_Store
 .env

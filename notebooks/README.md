@@ -7,8 +7,9 @@ Jupyter notebooks for the dental cavity detection pipeline. Notebooks are for ex
 | Notebook | Purpose |
 | --- | --- |
 | `01_eda.ipynb` | Exploratory data analysis of the dental X-ray dataset: class balance, image dimensions, bounding-box distributions, and sample visualizations. |
-| `02_training.ipynb` | YOLO transfer-learning training runs, including data config, hyperparameters, and training curves. |
-| `03_evaluation.ipynb` | Model evaluation: mAP, per-class precision/recall, confusion matrix, and qualitative prediction review. |
+| `02_preprocessing.ipynb` | Deduplication, source-stratified train/valid/test re-split, and train-only class-imbalance oversampling. Fixes gaps `01_eda.ipynb` surfaces. |
+| `03_training.ipynb` | YOLO transfer-learning training runs, including data config, hyperparameters, and training curves. |
+| `04_evaluation.ipynb` | Model evaluation: mAP, per-class precision/recall, confusion matrix, and qualitative prediction review. |
 
 ## Conventions
 
