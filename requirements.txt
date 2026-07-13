@@ -11,3 +11,4 @@ pycocotools
 roboflow
 jupyter
 tensorboard
+labelImg
