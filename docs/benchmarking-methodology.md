@@ -11,13 +11,38 @@
 
 This document (a) selects the **second detector architecture** we will train as a
 challenger to our YOLO baseline, and (b) defines the **benchmarking protocol** we will
-use to compare the two fairly. It does **not** cover running the training itself — that
+use to compare them fairly. It does **not** cover running the training itself — that
 is a downstream task. The goal here is a spec the whole team can build against so the
 final "benchmark vs. baseline" analysis is fair, reproducible, and defensible in the report.
 
 **Detection task recap:** multi-class object detection on dental panoramic X-rays.
 Classes: `cavity`, `filling`, `crown`, `impacted_tooth`. Labels in YOLO format
 (Roboflow/Kaggle sourced). Baseline = YOLOv11/v12 transfer learning (Ultralytics).
+
+### 1.1 The three models we compare
+
+The benchmark spans **three** models in **two task families**. This is deliberate: it
+covers both the "compared to a baseline" and the "architecture exploration" rubric points.
+
+| Tier | Model | Task | Role |
+|---|---|---|---|
+| Simple baseline | CNN classifier (3 conv blocks, from scratch) — Aparna's HF push | **Classification** (one label/image) | "What does a naive approach get?" |
+| Primary | YOLOv11n (Ultralytics, COCO-pretrained) | **Detection** (boxes) | The product |
+| Challenger | Faster R-CNN (ResNet-50-FPN, COCO-pretrained) | **Detection** (boxes) | Architecture comparison vs. YOLO |
+
+**Two metric families, because the tasks differ:**
+- **Detection** (YOLO vs. Faster R-CNN) → mAP, IoU box-matching, box-level confusion
+  matrix. This is the core apples-to-apples architecture benchmark. Code: `src.eval`
+  (`compute_map`, `compute_precision_recall_f1`, `compute_confusion_matrix`).
+- **Classification** (CNN baseline) → accuracy, per-class P/R/F1, image-level confusion
+  matrix. mAP is **undefined** for a classifier (no boxes, no IoU). Code:
+  `src.eval.classification`.
+- **Bridging the two:** to place the CNN and YOLO on one axis, a detector's boxes are
+  reduced to a single per-image label (`image_labels_from_detections`) using the same
+  `Cavity > Crown > Impacted Tooth > Filling` priority rule Aparna used to make her
+  training set single-label. Both models then answer the same "which pathology is in this
+  X-ray" question. This intentionally discards YOLO's localization — that strength is
+  reported separately via mAP, not hidden.
 
 ---
 
@@ -40,33 +65,48 @@ Classes: `cavity`, `filling`, `crown`, `impacted_tooth`. Labels in YOLO format
 
 | Candidate | Paradigm | Same framework? | Contrast value | Integration risk | Verdict |
 |---|---|---|---|---|---|
-| **RT-DETR (rtdetr-l)** | Transformer enc-dec, **NMS-free** set prediction | Yes — Ultralytics `RTDETR` | High (CNN → transformer) | **Low** | **Selected** |
-| Faster R-CNN | Two-stage CNN (region proposals + ROI head) | No — torchvision/Detectron2 | High (1-stage → 2-stage) | Medium (COCO-format conversion) | Fallback |
-| RetinaNet | One-stage + focal loss | No — torchvision | Medium (imbalance-friendly) | Medium | Alternative |
+| **Faster R-CNN** | Two-stage CNN (region proposals + ROI head) | No — torchvision | High (1-stage → 2-stage CNN) | Medium (COCO-format conversion) | **Selected** |
+| RetinaNet | One-stage CNN + focal loss | No — torchvision | Medium (imbalance-friendly) | Medium | Alternative |
+| RT-DETR (rtdetr-l) | Transformer enc-dec, NMS-free | Yes — Ultralytics `RTDETR` | High (CNN → transformer) | Low | Rejected — team decided to keep the comparison CNN-vs-CNN, not introduce a transformer |
 | YOLOv8 / older YOLO | Same as baseline | Yes | Low — too similar | Low | Rejected — weak benchmark |
 | DETR / Deformable DETR | Transformer | No | High | High — slow convergence, data-hungry | Rejected — timeline risk |
 | EfficientDet | BiFPN, compound scaling | No — TF | Medium | High | Rejected — framework friction |
 
-### 3.1 Recommendation: **RT-DETR-L**
+### 3.1 Recommendation: **Faster R-CNN (ResNet-50-FPN, COCO-pretrained)**
+
+*Updated per team discussion 2026-07-13: team preferred a CNN-vs-CNN comparison over the
+transformer contrast, so the pick moved from RT-DETR to Faster R-CNN (previously our
+documented fallback).*
 
 **Why:**
-- **Meaningful paradigm contrast.** RT-DETR is a transformer encoder-decoder that does
-  NMS-free set prediction — architecturally the opposite of YOLO's anchor-free CNN + NMS
-  pipeline. This makes "architecture exploration" (rubric §6) genuine rather than cosmetic.
-- **Apples-to-apples, low risk.** RT-DETR ships inside the same Ultralytics package we
-  already use. Same `data.yaml`, same `.train()` / `.val()` calls, **same mAP computation**.
-  We change one class name (`YOLO` → `RTDETR`) and reuse the entire eval harness. No label
-  reformatting, no second metrics implementation to reconcile.
-- **Fair compute comparison.** RT-DETR-L is real-time and roughly parameter-comparable to a
-  large YOLO model, so an accuracy *and* speed comparison is fair and interesting.
-- **COCO-pretrained** weights available → same transfer-learning story as the baseline.
+- **Meaningful architectural contrast within CNNs.** Faster R-CNN is a two-stage detector
+  (region proposal network → ROI head) versus YOLO's single-stage anchor-free design. This
+  is a classic, well-understood axis of comparison (speed/simplicity vs. proposal-based
+  accuracy) and is easy to explain and justify in the report — satisfies "architecture
+  exploration" (rubric §6) without the added risk of a transformer's training dynamics.
+- **Relevant to our data.** Two-stage detectors are traditionally stronger on small/dense
+  objects — plausibly relevant here since `cavity` lesions can be small relative to the
+  full X-ray. Worth calling out explicitly in the Discussion section regardless of which
+  way the result goes.
+- **COCO-pretrained** `torchvision.models.detection.fasterrcnn_resnet50_fpn` weights are
+  available → same transfer-learning story as the baseline.
+- **Integration cost is real but contained.** Unlike YOLO, Faster R-CNN is not
+  Ultralytics-native, so: (a) YOLO-format labels must be converted to COCO-format for
+  training/eval, and (b) predictions must be adapted into a shared internal format before
+  scoring. Both of these are now handled centrally by the `src/eval` package (see
+  `src/eval/formats.py`), so the benchmark stays apples-to-apples: **one shared metrics
+  implementation scores both models**, regardless of which framework produced the boxes.
 
-**Fallback — Faster R-CNN:** if the team prefers a classic two-stage *CNN* contrast, use
-`torchvision` Faster R-CNN (ResNet-50-FPN, COCO-pretrained). Cost: convert YOLO labels →
-COCO JSON and run eval through `pycocotools` / a shared adapter so numbers stay comparable.
-Only take this path if we accept the extra integration work.
+**Alternative kept on the shelf — RetinaNet:** a one-stage CNN with focal loss, useful if
+Faster R-CNN's training time turns out to be too expensive for our compute budget; keeps
+the CNN-only constraint while being closer to YOLO's single-stage family.
 
-**Decision needed from team/instructor:** confirm RT-DETR-L as the challenger (§8).
+**Rejected — RT-DETR:** still the lower-integration-risk option technically (same
+Ultralytics API as baseline), but the team's explicit preference is to compare two CNNs
+rather than introduce a transformer, so it's dropped from consideration for this benchmark.
+
+**Decision needed from team/instructor:** confirm Faster R-CNN (ResNet-50-FPN) as the
+challenger (§7).
 
 ---
 
@@ -146,8 +186,11 @@ in §4.2. For RT-DETR this is native (Ultralytics `.val()`); for a non-Ultralyti
 
 ### 4.7 Threats to validity (state these in the report)
 
-- **Framework differences** in default augmentation/loss — minimized by picking RT-DETR
-  (same framework); documented if the Faster R-CNN fallback is used.
+- **Framework differences** in default augmentation/loss — Faster R-CNN is torchvision,
+  not Ultralytics, so its default augmentation pipeline differs from YOLO's. We mitigate
+  this by aligning what we can (resize, horizontal flip, normalization) and explicitly
+  documenting what we can't (mosaic/mixup are YOLO-specific and have no Faster R-CNN
+  equivalent) rather than silently ignoring the gap.
 - **Small test set** → wide confidence intervals; mitigated by multi-seed reporting.
 - **Class imbalance** → always report per-class, not just aggregate mAP.
 - **Pretraining domain gap** (COCO natural images → grayscale X-rays) affects both models
@@ -170,13 +213,13 @@ in §4.2. For RT-DETR this is native (Ultralytics `.val()`); for a non-Ultralyti
 | §4 Model Description | §2, §3 (two justified architectures) |
 | §6 Hyperparameter Tuning / architecture exploration | §3 selection rationale + tuning downstream |
 | §7 Benchmarking vs baseline | §4 entire methodology |
-| "Innovative + justified model choice" (top tier) | RT-DETR transformer contrast, §3.1 |
+| "Innovative + justified model choice" (top tier) | Faster R-CNN two-stage contrast, §3.1 |
 | §5 visual results / confusion matrix | §4.6 artifacts |
 | 5–10 sample outputs (submission) | §4.6 qualitative panel |
 
 ## 7. Open decisions (need sign-off)
 
-1. **Confirm RT-DETR-L** as challenger (vs. Faster R-CNN fallback).
+1. **Confirm Faster R-CNN (ResNet-50-FPN)** as challenger (vs. RetinaNet alternative).
 2. **Confirm baseline YOLO version** (v11 vs v12) so both are pinned in `requirements.txt`.
 3. **Seed budget:** how many seeds per model can our GPU time afford (target ≥3)?
 4. **Fixed thresholds:** agree the confidence + IoU values for P/R/F1 reporting.
