@@ -106,8 +106,13 @@ def train_faster_rcnn(
     num_workers: int = 2,
     seed: int = SEED,
     max_batches: int = None,
-) -> dict:
-    """Fine-tune Faster R-CNN on the processed dataset. Returns per-epoch mean loss.
+    save_path: str = None,
+):
+    """Fine-tune Faster R-CNN on the processed dataset.
+
+    Returns ``(model, history)`` where ``history["epoch_loss"]`` is the per-epoch
+    mean loss. If ``save_path`` is given, the trained weights are saved there (via
+    ``state_dict``); reload with ``build_faster_rcnn()`` + ``load_state_dict``.
 
     `max_batches` caps batches per epoch - used only for a fast scaffold check;
     leave it None for real training. Run the full training on Colab GPU per the
@@ -145,8 +150,14 @@ def train_faster_rcnn(
             loss.backward()
             optimizer.step()
 
-            running += float(loss)
+            running += float(loss.detach())
             n += 1
         history["epoch_loss"].append(running / max(n, 1))
 
-    return history
+    if save_path:
+        from pathlib import Path
+
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        torch.save(model.state_dict(), save_path)
+
+    return model, history
