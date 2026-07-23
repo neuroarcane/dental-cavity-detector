@@ -235,5 +235,8 @@ data/
 .ipynb_checkpoints/
 runs/
 wandb/
+# Generated eval artifacts. Sample panels are real patient X-rays (PHI) and must
+# never be committed; the aggregate plots are regenerable from the eval notebook.
+reports/
 .DS_Store
 .env

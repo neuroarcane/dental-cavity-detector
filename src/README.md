@@ -7,8 +7,9 @@ Reusable Python code for the dental cavity detection pipeline. Notebooks in `not
 | Module | Responsibility |
 | --- | --- |
 | `data/` | Dataset loading, YOLO-format label parsing, train/val/test splits, and augmentation. |
-| `models/` | Model definition and transfer-learning setup for the YOLO detector. |
-| `eval/` | Metrics (mAP, precision/recall), confusion matrix, and prediction visualization. |
+| `models/` | Transfer-learning setup for the YOLO detector (`build.py`) and the Faster R-CNN challenger detector (`faster_rcnn.py`). |
+| `eval/` | Framework-agnostic **detection** metrics (mAP, P/R/F1, confusion matrix) scoring YOLO or torchvision predictions through one shared format, plus **classification** metrics (`classification.py`) for the CNN baseline. See `docs/benchmarking-methodology.md` for how the three models are compared. |
+| `tuning/` | Hyperparameter sweep runner (grid/random search over learning rate, augmentation, etc.) for the YOLO trainer. |
 
 ## Conventions
 
