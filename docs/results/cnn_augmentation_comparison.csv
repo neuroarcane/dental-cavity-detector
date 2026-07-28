@@ -1,0 +1,3 @@
+model,test_accuracy,test_loss
+Baseline (no augmentation),0.8806,0.9863
+Augmented + early stopping,0.7747502326965332,0.722480058670044
