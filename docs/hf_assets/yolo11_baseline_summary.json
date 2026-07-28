@@ -1,0 +1,10 @@
+{
+  "mAP50": 0.7462,
+  "mAP50_95": 0.4467,
+  "per_class_mAP50": {
+    "Cavity": 0.42,
+    "Filling": 0.748,
+    "Crown": 0.874,
+    "Impacted Tooth": 0.942
+  }
+}
