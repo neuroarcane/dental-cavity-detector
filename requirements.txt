@@ -12,3 +12,4 @@ roboflow
 jupyter
 tensorboard
 labelImg
+huggingface_hub
