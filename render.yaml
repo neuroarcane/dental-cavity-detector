@@ -1,0 +1,12 @@
+# Render Blueprint — Dental Cavity Detector serving API (SCRUM-44)
+# One-click deploy: Render → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: dental-cavity-detector-api
+    runtime: docker
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    # torch/ultralytics need headroom; the free 512MB tier may OOM on /predict.
+    plan: starter          # upgrade to standard (>=2GB) if the first prediction is killed
+    healthCheckPath: /health
+    autoDeploy: false
