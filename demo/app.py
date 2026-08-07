@@ -12,10 +12,18 @@ Run locally:
 import io
 import os
 import subprocess
+from urllib.parse import urlsplit
 
 import requests
 import streamlit as st
 from PIL import Image, ImageDraw
+
+try:
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    _HAS_GOOGLE_AUTH = True
+except Exception:  # google-auth not installed (e.g. a minimal local run)
+    _HAS_GOOGLE_AUTH = False
 
 # ---------------------------------------------------------------------------
 # Config
@@ -25,10 +33,9 @@ def resolve_api_url() -> str:
     """Which API to call, in priority order.
 
     1. Streamlit secret CAVITY_API_URL  -> used by the public demo on
-       Streamlit Community Cloud (set to the public Render endpoint).
+       Streamlit Community Cloud (set to our private Cloud Run /predict URL).
     2. Env var CAVITY_API_URL           -> handy for local overrides.
-    3. Private Cloud Run default        -> our internal production endpoint
-       (requires the Google auth token option below).
+    3. Private Cloud Run default        -> our internal production endpoint.
     """
     try:
         if "CAVITY_API_URL" in st.secrets:
@@ -56,14 +63,37 @@ st.set_page_config(page_title="Dental Cavity Detector", page_icon="🦷", layout
 # Auth
 # ---------------------------------------------------------------------------
 
-def get_identity_token() -> str:
-    """
-    Fetch a Google-signed identity token for calling the private Cloud Run
-    service, via the `gcloud` CLI (gcloud auth print-identity-token).
+def get_identity_token(audience: str) -> str:
+    """Mint a Google-signed ID token to call the private Cloud Run service.
 
-    Requires `gcloud auth login` to have been run once on this machine,
-    with the Cloud Run Invoker role granted on the service.
+    Priority:
+    1. Service-account key in Streamlit secrets ([gcp_service_account]) -- used
+       by the public demo on Streamlit Community Cloud. The token's audience is
+       the Cloud Run service base URL, and the service account must hold the
+       Cloud Run Invoker role on that service.
+    2. Local `gcloud` CLI (gcloud auth print-identity-token) for developers who
+       have run `gcloud auth login` with Invoker access.
     """
+    # 1. Service account supplied via Streamlit secrets (public demo).
+    try:
+        has_sa = "gcp_service_account" in st.secrets
+    except Exception:
+        has_sa = False
+
+    if has_sa:
+        if not _HAS_GOOGLE_AUTH:
+            raise RuntimeError(
+                "google-auth is required for service-account auth. "
+                "Add 'google-auth' to requirements.txt."
+            )
+        info = dict(st.secrets["gcp_service_account"])
+        creds = service_account.IDTokenCredentials.from_service_account_info(
+            info, target_audience=audience,
+        )
+        creds.refresh(GoogleAuthRequest())
+        return creds.token
+
+    # 2. Local gcloud fallback.
     result = subprocess.run(
         ["gcloud", "auth", "print-identity-token"],
         capture_output=True, text=True, timeout=15, check=True,
@@ -196,9 +226,9 @@ with st.sidebar:
         timeout_seconds = st.slider("Request timeout (seconds)", 10, 180, 90, 10)
         use_auth = st.checkbox(
             "Send Google auth token",
-            value=False,
-            help="Only needed for the private Cloud Run endpoint. Leave OFF "
-                 "for the public demo (Render), which needs no token.",
+            value=True,
+            help="Keep ON: our Cloud Run endpoint is private, so each request "
+                 "must carry a Google identity token (from the service account).",
         )
         field_name = "image"
 
@@ -233,7 +263,9 @@ else:
             headers = {}
             if use_auth:
                 try:
-                    headers["Authorization"] = f"Bearer {get_identity_token()}"
+                    parts = urlsplit(api_url)
+                    audience = f"{parts.scheme}://{parts.netloc}"
+                    headers["Authorization"] = f"Bearer {get_identity_token(audience)}"
                 except Exception as e:
                     st.error(f"Could not authenticate with the API: {e}")
                     st.stop()
